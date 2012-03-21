@@ -1,0 +1,13 @@
+#host = 127.0.0.1
+#port = 8080
+
+#[ldap]
+#
+#uri = ldap://localhost
+#basedn = "ou=people, dc=example, dc=com"
+
+#[memcache]
+#
+#servers = 127.0.0.1:11211
+#lifetime = 600
+
