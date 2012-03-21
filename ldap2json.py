@@ -80,7 +80,7 @@ class Cache (object):
 
 @route('/ldap')
 def ldapsearch():
-    '''This method is wqhere web clients interact with ldap2json.  Any
+    '''This method is where web clients interact with ldap2json.  Any
     request parameters are turned into an LDAP filter, and results are JSON
     encoded and returned to the caller.'''
 
@@ -182,5 +182,4 @@ def main():
 
 if __name__ == '__main__':
     main()
-
 
