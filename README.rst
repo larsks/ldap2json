@@ -7,9 +7,14 @@ then returns JSON-encoded results.
 Requirements
 ============
 
-ldap2json requires the bottle_ framework.
+ldap2json requires the bottle_ framework, the ldap_ module, the configobj_
+module, the memcache_ module, and a recent version of Python (where
+"recent" means "has `argparse`").
 
 .. _bottle: http://bottlepy.org/
+.. _ldap: http://www.python-ldap.org/
+.. _configobj: http://www.voidspace.org.uk/python/configobj.html
+.. _memcache: http://www.tummy.com/Community/software/python-memcached/
 
 Running ldap2json
 =================
