@@ -4,6 +4,20 @@ ldap2json
 A simple proxy that turns HTTP GET requests into LDAP queries and
 then returns JSON-encoded results.
 
+Requirements
+============
+
+ldap2json requires the bottle_ framework.
+
+.. _bottle: http://bottlepy.org/
+
+Running ldap2json
+=================
+
+Running ldap2json from the command line::
+
+  ./ldap2json.py [ -f configfile ]
+
 Return values
 =============
 
