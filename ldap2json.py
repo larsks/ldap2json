@@ -1,5 +1,8 @@
 #!/usr/bin/python
 
+'''ldap2json acts as a proxy between HTTP GET requests and an LDAP
+directory.  Results are returned to the caller using JSON.'''
+
 import os
 import sys
 import argparse
@@ -10,13 +13,16 @@ import urllib
 import json
 import memcache
 
-from bottle import route,run,request,HTTPError
+from bottle import route,run,request,response,HTTPError
 
 directory = None
 cache = None
 config = None
 
 class LDAPDirectory (object):
+    '''A simple wrapper for LDAP connections that exposes a simplified
+    search interface.  At the moment this class only supports anonymous
+    binds.'''
 
     def __init__ (self, uri,
             basedn='',
@@ -74,6 +80,10 @@ class Cache (object):
 
 @route('/ldap')
 def ldapsearch():
+    '''This method is wqhere web clients interact with ldap2json.  Any
+    request parameters are turned into an LDAP filter, and results are JSON
+    encoded and returned to the caller.'''
+
     global directory
     global cache
     global config
@@ -95,8 +105,8 @@ def ldapsearch():
     if config.get('debug'):
         print 'result:', res
 
+    response.content_type = 'application/json'
     return json.dumps(res, indent=2)
-
 
 def parse_args():
     p = argparse.ArgumentParser()
