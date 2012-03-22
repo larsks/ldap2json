@@ -35,9 +35,9 @@ class LDAPDirectory (object):
         self.scope  = scope
         self.debug  = debug
 
-        self.init_ldap()
+        self.connect()
 
-    def init_ldap(self):
+    def connect(self):
         self.dir    = ldap.initialize(self.uri)
 
     def search(self, **kwargs):
@@ -88,6 +88,15 @@ def ldapsearch():
     global cache
     global config
 
+    callback = None
+
+    if 'callback' in request.GET:
+        callback = request.GET['callback']
+        del request.GET['callback']
+
+    if '_' in request.GET:
+        del request.GET['_']
+
     key = urllib.quote('/ldap/%s/%s' % (
             directory.basedn,
             request.urlparts.query,
@@ -106,7 +115,12 @@ def ldapsearch():
         print 'result:', res
 
     response.content_type = 'application/json'
-    return json.dumps(res, indent=2)
+    text = json.dumps(res, indent=2)
+
+    if callback:
+        text = '%s(%s)' % (callback, text)
+
+    return text
 
 def parse_args():
     p = argparse.ArgumentParser()
