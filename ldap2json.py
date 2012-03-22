@@ -12,25 +12,31 @@ import pprint
 import urllib
 import json
 import memcache
+import logging
+import itertools
+import time
 
 from bottle import route,run,request,response,HTTPError
 
 directory = None
-cache = None
-config = None
+cache     = None
+config    = None
 
 class LDAPDirectory (object):
     '''A simple wrapper for LDAP connections that exposes a simplified
     search interface.  At the moment this class only supports anonymous
     binds.'''
 
-    def __init__ (self, uri,
+    def __init__ (self, uris,
             basedn='',
             scope=ldap.SCOPE_SUBTREE,
-            debug=False
+            debug=False,
+            maxwait=120,
             ):
 
-        self.uri    = uri
+        self.uris    = itertools.cycle(uris)
+        self.maxwait = maxwait
+
         self.basedn = basedn
         self.scope  = scope
         self.debug  = debug
@@ -38,20 +44,28 @@ class LDAPDirectory (object):
         self.connect()
 
     def connect(self):
-        self.dir    = ldap.initialize(self.uri)
+        uri = self.uris.next()
+        logging.info('Connecting to %s' % uri)
+        self.dir    = ldap.initialize(uri)
 
     def search(self, **kwargs):
         '''Turns kwargs into an LDAP search filter, executes the search,
         and returns the results.  The keys in kwargs are ANDed together;
-        only results meeting *all* criteria will be returned.'''
+        only results meeting *all* criteria will be returned.
+        
+        If the connection to the LDAP server has been lost, search will try
+        to reconnect with exponential backoff.  The wait time between
+        reconnection attempts will grow no large than self.maxwait.'''
 
         if not kwargs:
             kwargs = { 'objectclass': '*' }
 
         filter = self.build_filter(**kwargs)
-        reconnect = False
+        tries = 0
 
         while True:
+            tries += 1
+
             try:
                 res = self.dir.search_s(
                         self.basedn,
@@ -59,11 +73,11 @@ class LDAPDirectory (object):
                         filterstr=filter) 
                 return res
             except ldap.SERVER_DOWN:
-                if reconnect:
-                    raise
-                else:
-                    reconnect = True
-                    self.connect()
+                interval = max(1, min(self.maxwait, (tries-1)*2))
+                logging.error('Lost connection to LDAP server: '
+                        'reconnecting in %d seconds.' % interval)
+                time.sleep(interval)
+                self.connect()
 
     def build_filter(self, **kwargs):
         '''Transform a dictionary into an LDAP search filter.'''
@@ -103,10 +117,14 @@ def ldapsearch():
 
     callback = None
 
+    # This supports JSONP requests, which require that the JSON
+    # data be wrapped in a function call specified by the
+    # callback parameter.
     if 'callback' in request.GET:
         callback = request.GET['callback']
         del request.GET['callback']
 
+    # jquery adds this to JSONP requests to prevent caching.
     if '_' in request.GET:
         del request.GET['_']
 
@@ -124,12 +142,10 @@ def ldapsearch():
     if not res:
         raise HTTPError(404)
 
-    if config.get('debug'):
-        print 'result:', res
-
     response.content_type = 'application/json'
     text = json.dumps(res, indent=2)
 
+    # wrap JSON data in function call for JSON responses.
     if callback:
         text = '%s(%s)' % (callback, text)
 
@@ -172,13 +188,23 @@ def init_directory():
     global directory
     global config
 
-    uri    = config.get('ldap', {}).get( 'uri', 'ldap://localhost')
+    uris    = config.get('ldap', {}).get( 'uris', ['ldap://localhost'])
     basedn = config.get('ldap', {}).get( 'basedn', '')
     
+    # Make sure we have a list of uris.
+    if isinstance(uris, (str, unicode)):
+        uris = [uris]
+
     directory = LDAPDirectory(
-            uri,
+            uris,
             basedn=basedn,
             debug=config.get('debug'),
+            )
+
+def init_logging():
+    logging.basicConfig(level=logging.INFO,
+            datefmt='%Y-%m-%d %H:%M:%S',
+            format='%(asctime)s %(name)s [%(levelname)s]: %(message)s',
             )
 
 def main():
@@ -198,6 +224,7 @@ def main():
     if config.get('debug'):
         print >>sys.stderr, 'CONFIG:', pprint.pformat(dict(config))
 
+    init_logging()
     init_memcache()
     init_directory()
 

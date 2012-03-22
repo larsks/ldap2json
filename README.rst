@@ -55,18 +55,20 @@ ldap
 
 The ``ldap`` section may contain two values:
 
-- ``uri`` -- an ``ldap://`` URI specifying the endpoint for queries.
+- ``uris`` -- a common-separated list of ``ldap://`` URIs specifying the
+  endpoint for queries.  If a server is unavailable, ldap2json will try the
+  next one in sequence until it is able to connect.
 - ``basedn`` -- the base DN to use for searches.
 
 An example `ldap` section might look like this::
 
   [ldap]
   
-  uri = ldap://ldap.example.com
+  uris = ldap://ldap1.example.com, ldap://ldap2.example.com
   basedn = "ou=people, dc=example, dc=com"
 
 Note that due to my use of the `configobj` module, strings containing
-commas must be quoted.
+commas must be quoted if you do not want them converted into a list.
 
 memcache
 --------
