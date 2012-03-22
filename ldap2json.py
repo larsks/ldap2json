@@ -49,8 +49,21 @@ class LDAPDirectory (object):
             kwargs = { 'objectclass': '*' }
 
         filter = self.build_filter(**kwargs)
-        res = self.dir.search_s(self.basedn, self.scope, filterstr=filter) 
-        return res
+        reconnect = False
+
+        while True:
+            try:
+                res = self.dir.search_s(
+                        self.basedn,
+                        self.scope,
+                        filterstr=filter) 
+                return res
+            except ldap.SERVER_DOWN:
+                if reconnect:
+                    raise
+                else:
+                    reconnect = True
+                    self.connect()
 
     def build_filter(self, **kwargs):
         '''Transform a dictionary into an LDAP search filter.'''
